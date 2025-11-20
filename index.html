@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        input, select, textarea {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .seed-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .seed-controls input {
+            flex: 1;
+        }
+
+        .seed-controls button {
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .seed-controls button:hover {
+            background: #5568d3;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .history-section {
+            margin-top: 30px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .history-header h2 {
+            color: #667eea;
+        }
+
+        .clear-btn {
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .clear-btn:hover {
+            background: #c82333;
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .history-item {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+
+        .history-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .history-item img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .history-item img:hover {
+            transform: scale(1.05);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: #ccc;
+        }
+
+        .history-info {
+            padding: 15px;
+            background: #f8f9fa;
+        }
+
+        .history-info p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .download-btn {
+            width: 100%;
+            padding: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 AI Image Generator</h1>
+        
+        
+        <div id="imageModal" class="modal">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <img class="modal-content" id="modalImage">
+        </div>
+        
+        <form id="generateForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="model">Model</label>
+                    <select id="model" name="model" required>
+                        <option value="stable-diffusion-v1-5">Stable Diffusion v1.5</option>
+                        <option value="dreamshaper">DreamShaper</option>
+                        <option value="stable-diffusion-xl">SDXL Base 1.0</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="lora">LoRA (Optional)</label>
+                    <select id="lora" name="lora">
+                        <option value="">None</option>
+                        <option value="realistic-vision-v6">Realistic Vision V6.0 B1</option>
+                        <option value="fearii-v1.1">Fearii LoHA v1.1</option>
+                    </select>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="prompt">Prompt</label>
+                    <textarea id="prompt" name="prompt" placeholder="Describe the image you want to generate..." required></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Seed Control</label>
+                    <div class="seed-controls">
+                        <input type="number" id="seed" name="seed" value="0" readonly>
+                        <button type="button" id="fixSeed">Fix</button>
+                        <button type="button" id="randomSeed">Random</button>
+                        <button type="button" id="incrementSeed">+1</button>
+                        <button type="button" id="decrementSeed">-1</button>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="generate-btn" id="generateBtn">Generate Image</button>
+        </form>
+
+        <div id="status" class="status hidden"></div>
+
+        <div class="history-section">
+            <div class="history-header">
+                <h2>Generation History</h2>
+                <button class="clear-btn" id="clearHistory">Clear History</button>
+            </div>
+            <div class="history-grid" id="historyGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentSeed = 0;
+        let seedMode = 'increment'; 
+        let fixedSeed = 0;
+        let history = [];
+        let imageCounter = 1;
+
+        
+        document.getElementById('fixSeed').addEventListener('click', () => {
+            seedMode = 'fixed';
+            fixedSeed = currentSeed;
+            updateSeedDisplay();
+        });
+
+        document.getElementById('randomSeed').addEventListener('click', () => {
+            seedMode = 'random';
+            currentSeed = Math.floor(Math.random() * 1000000);
+            updateSeedDisplay();
+        });
+
+        document.getElementById('incrementSeed').addEventListener('click', () => {
+            seedMode = 'increment';
+            currentSeed++;
+            updateSeedDisplay();
+        });
+
+        document.getElementById('decrementSeed').addEventListener('click', () => {
+            seedMode = 'decrement';
+            currentSeed = Math.max(0, currentSeed - 1);
+            updateSeedDisplay();
+        });
+
+        function updateSeedDisplay() {
+            document.getElementById('seed').value = currentSeed;
+        }
+
+        function getNextSeed() {
+            switch(seedMode) {
+                case 'fixed':
+                    return fixedSeed;
+                case 'random':
+                    return Math.floor(Math.random() * 1000000);
+                case 'increment':
+                    return currentSeed++;
+                case 'decrement':
+                    return Math.max(0, currentSeed--);
+                default:
+                    return currentSeed;
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.classList.remove('hidden');
+        }
+
+        function hideStatus() {
+            document.getElementById('status').classList.add('hidden');
+        }
+
+        function addToHistory(imageData) {
+            history.push(imageData);
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const grid = document.getElementById('historyGrid');
+            grid.innerHTML = '';
+
+            history.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <img src="${item.image}" alt="Generated image" onclick="openModal('${item.image}')">
+                    <div class="history-info">
+                        <p><strong>Model:</strong> ${item.model}</p>
+                        <p><strong>Seed:</strong> ${item.seed}</p>
+                        <p><strong>Prompt:</strong> ${item.prompt.substring(0, 50)}...</p>
+                        <button class="download-btn" onclick="downloadImage(${index})">Download</button>
+                    </div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        function openModal(imageSrc) {
+            document.getElementById('imageModal').classList.add('active');
+            document.getElementById('modalImage').src = imageSrc;
+        }
+
+        function closeModal() {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+
+        
+        document.getElementById('imageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        function downloadImage(index) {
+            const item = history[index];
+            const link = document.createElement('a');
+            link.href = item.image;
+            link.download = item.filename;
+            link.click();
+        }
+
+        document.getElementById('clearHistory').addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear the history?')) {
+                history = [];
+                imageCounter = 1;
+                renderHistory();
+            }
+        });
+
+        document.getElementById('generateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            
+            const seed = getNextSeed();
+            updateSeedDisplay();
+
+            const formData = {
+                model: document.getElementById('model').value,
+                lora: document.getElementById('lora').value,
+                prompt: document.getElementById('prompt').value,
+                seed: seed
+            };
+
+            showStatus('Generating image...', 'loading');
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus('Image generated successfully!', 'success');
+                    
+                    const filename = `imagegen_${String(imageCounter).padStart(4, '0')}.png`;
+                    imageCounter++;
+
+                    addToHistory({
+                        image: data.image,
+                        filename: filename,
+                        model: formData.model,
+                        seed: seed,
+                        prompt: formData.prompt,
+                        lora: formData.lora
+                    });
+
+                    setTimeout(hideStatus, 3000);
+                } else {
+                    showStatus('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        
+        updateSeedDisplay();
+    </script>
+</body>
+</html>
